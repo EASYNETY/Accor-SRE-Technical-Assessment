@@ -12,27 +12,30 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # continue-on-error allows the pipeline to pass in environments where
-    # real AWS/ArgoCD credentials are not available, e.g. during a technical
-    # assessment. Remove this in production.
-    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
       - name: Configure AWS credentials
+        id: aws-auth
+        # continue-on-error on this step allows the job to proceed even when
+        # real AWS credentials (AWS_IAM_ROLE) are not available, e.g. during
+        # a technical assessment. Remove continue-on-error in production.
+        continue-on-error: true
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           aws-region: us-east-1
 
       - name: Install Argo CD CLI
+        if: steps.aws-auth.outcome == 'success'
         run: |
           curl -sSL -o /tmp/argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
           chmod +x /tmp/argocd-linux-amd64
           sudo mv /tmp/argocd-linux-amd64 /usr/local/bin/argocd
 
       - name: Deploy via Argo CD
+        if: steps.aws-auth.outcome == 'success'
         run: |
           argocd login ${{ secrets.ARGOCD_SERVER }} --username ${{ secrets.ARGOCD_USER }} --password ${{ secrets.ARGOCD_PASSWORD }} --insecure
           argocd app sync redemption-api
