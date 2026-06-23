@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redemption-api
+  labels:
+    app: redemption-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redemption-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: redemption-api
+    spec:
+      serviceAccountName: redemption-api-sa
+      containers:
+        - name: redemption-api
+          image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/redemption:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ENVIRONMENT
+              value: "prod"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: redemption-secrets
+                  key: database_url
+            - name: REDIS_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: redemption-secrets
+                  key: redis_endpoint
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 10
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/redemption/config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: redemption-config
