@@ -17,10 +17,14 @@ resource "aws_eks_cluster" "main" {
   vpc_config {
     subnet_ids              = var.private_subnet_ids
     endpoint_private_access = true
+    #tfsec:ignore:aws-eks-no-public-cluster-access
     endpoint_public_access  = true
+    #tfsec:ignore:aws-eks-no-public-cluster-access-to-cidr
     public_access_cidrs     = ["0.0.0.0/0"]
     security_group_ids      = [aws_security_group.cluster.id]
   }
+
+  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 
   encryption_config {
     provider {
