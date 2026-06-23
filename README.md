@@ -55,6 +55,45 @@ The CI workflow is split into two sequential jobs to cleanly separate concerns:
 
 ## Deploy
 
+### 0. Bootstrap Terraform Remote State (first time only)
+
+Before running Terraform, you must create the S3 bucket and DynamoDB table used for remote state storage and state locking. Two convenience scripts are provided — pick the one that matches your OS:
+
+| Script | Platform |
+|---|---|
+| `bootstrap-backend.ps1` | Windows (PowerShell) |
+| `bootstrap-backend.sh` | Linux / macOS (Bash) |
+
+Both scripts will:
+1. Create an S3 bucket (`redemption-terraform-state` by default) with **versioning** and **AES-256 server-side encryption** enabled.
+2. Create a DynamoDB table (`redemption-terraform-lock` by default) for Terraform state locking.
+3. Automatically run `terraform init -reconfigure` inside `infra/terraform` if a Terraform binary is found.
+
+**Windows (PowerShell):**
+```powershell
+# Defaults: bucket=redemption-terraform-state, table=redemption-terraform-lock, region=$env:AWS_DEFAULT_REGION
+$env:AWS_DEFAULT_REGION = "us-east-1"
+.\bootstrap-backend.ps1
+
+# Or override all three:
+.\bootstrap-backend.ps1 -BucketName my-bucket -DynamoTable my-lock-table -Region eu-west-1
+```
+
+**Linux / macOS (Bash):**
+```bash
+# Defaults: bucket=redemption-terraform-state, table=redemption-terraform-lock, region=$AWS_DEFAULT_REGION or us-east-1
+export AWS_DEFAULT_REGION=us-east-1
+chmod +x bootstrap-backend.sh
+./bootstrap-backend.sh
+
+# Or override positional args: <bucket> <table> <region>
+./bootstrap-backend.sh my-bucket my-lock-table eu-west-1
+```
+
+> **Note:** You only need to run this **once** per AWS account/region. Re-running is safe — existing resources are left unchanged.
+
+---
+
 ### Prerequisites
 
 - AWS CLI installed and configured.
